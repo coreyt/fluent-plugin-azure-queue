@@ -1,0 +1,65 @@
+PATH
+  remote: .
+  specs:
+    fluent-plugin-azure-queue (0.0.1.pre.pre)
+      azure-storage (>= 0.12.3.preview, < 0.13)
+      fluentd (>= 0.12.2, < 0.14)
+      nokogiri
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    azure-core (0.1.10)
+      faraday (~> 0.9)
+      faraday_middleware (~> 0.10)
+    azure-storage (0.12.3.preview)
+      azure-core (~> 0.1)
+      faraday (~> 0.9)
+      faraday_middleware (~> 0.10)
+    cool.io (1.5.1)
+    faraday (0.13.1)
+      multipart-post (>= 1.2, < 3)
+    faraday_middleware (0.12.2)
+      faraday (>= 0.7.4, < 1.0)
+    flexmock (2.3.5)
+    fluentd (0.12.39)
+      cool.io (>= 1.2.2, < 2.0.0)
+      http_parser.rb (>= 0.5.1, < 0.7.0)
+      json (>= 1.4.3)
+      msgpack (>= 0.5.11, < 2)
+      sigdump (~> 0.2.2)
+      string-scrub (>= 0.0.3, <= 0.0.5)
+      tzinfo (>= 1.0.0)
+      tzinfo-data (>= 1.0.0)
+      yajl-ruby (~> 1.0)
+    http_parser.rb (0.6.0)
+    json (2.1.0)
+    mini_portile2 (2.1.0)
+    msgpack (1.1.0)
+    multipart-post (2.0.0)
+    nokogiri (1.7.2)
+      mini_portile2 (~> 2.1.0)
+    power_assert (1.0.2)
+    rake (12.0.0)
+    sigdump (0.2.4)
+    string-scrub (0.0.5)
+    test-unit (3.2.5)
+      power_assert
+    thread_safe (0.3.6)
+    tzinfo (1.2.3)
+      thread_safe (~> 0.1)
+    tzinfo-data (1.2017.2)
+      tzinfo (>= 1.0.0)
+    yajl-ruby (1.3.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  flexmock (>= 1.3.3)
+  fluent-plugin-azure-queue!
+  rake (>= 0.9.2)
+  test-unit (>= 3.0.8)
+
+BUNDLED WITH
+   1.15.3
