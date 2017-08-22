@@ -49,3 +49,28 @@ The maximum number of messages to pull from the queue at once. Default 10. Max 3
 **lease_time**
 
 The time to lease the messages for. Default 30
+
+## Integration with Azure Event Hub
+
+You can use an azure function to forward messages from event hubs to storage queues for easy ingestion by this gem. This is not recommended for high volumes, but should serve as a stop gap until a complete azure event hub gem is created.
+
+```c#
+using System;
+using Microsoft.WindowsAzure.Storage.Queue;
+
+public static void Run(string[] hubMessages, ICollector<string> outputQueue, TraceWriter log)
+{
+    foreach (string message in hubMessages)
+    {
+        int bytes = message.Length * sizeof(Char);
+        if (bytes < 64000)
+        {
+            outputQueue.Add(message);
+        }
+        else 
+        {
+            log.Warning($"Message is larger than 64k with {bytes} bytes. Dropping message");
+        }
+    }
+}
+```
