@@ -40,25 +40,22 @@ class AzureQueueInputTest < Test::Unit::TestCase
     queue_client.should_receive(:list_messages).with(
       driver.instance.queue_name,
       driver.instance.lease_time,
-      { number_of_messages: driver.instance.batch_size}).and_return(messages).once
+      { number_of_messages: 1}).and_return(messages).once
     client = flexmock("client", :queue_client => queue_client)
     flexmock(Azure::Storage::Client, :create => client)
     queue_client
   end
 
-  def test_two_messages
+  def test_one_message
     d = create_driver
-    messages = [ Struct::QueueMessage.new(1, 99, Base64.encode64("test line")),
-                 Struct::QueueMessage.new(2, 100, Base64.encode64("test line2"))]
+    messages = [ Struct::QueueMessage.new(1, 99, Base64.encode64("test line"))]
     queue_client = setup_mocks(d, messages)
     queue_client.should_receive(:delete_message).with(d.instance.queue_name, messages[0].id,messages[0].pop_receipt).once
-    queue_client.should_receive(:delete_message).with(d.instance.queue_name, messages[1].id,messages[1].pop_receipt).once
     d.run do
       sleep 1
     end
-    assert_equal(2, d.emits.size)
+    assert_equal(1, d.emits.size)
     d.expect_emit(d.instance.tag, @time, { "message" => "test line" })
-    d.expect_emit(d.instance.tag, @time, { "message" => "test line2" })
   end
 
   def test_no_messages
