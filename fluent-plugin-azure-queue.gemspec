@@ -18,6 +18,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency "fluentd", [">= 0.12.2", "< 0.14"]
   gem.add_dependency "azure-storage", [">= 0.12.3.preview", "< 0.13"]
   gem.add_dependency "nokogiri"
+  gem.add_dependency "concurrent-ruby"
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
   gem.add_development_dependency "flexmock", ">= 1.3.3"
