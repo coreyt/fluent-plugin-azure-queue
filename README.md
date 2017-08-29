@@ -1,6 +1,9 @@
 # A  [Fluentd](http://github.com/fluent/fluentd) plugin to read from azure queues and event hubs
-The azure queue input plugin performs at about 30 messages/second in my tests. If you need more throughput from event hubs,
- I suggest using the event hub capture plugin.
+[![Build Status](https://travis-ci.org/sbonebrake/fluent-plugin-azure-queue.svg?branch=master)](https://travis-ci.org/sbonebrake/fluent-plugin-azure-queue)
+
+This gem consists of two fluentd input plugins, azure_queue and azure_event_hub_capture.
+The azure queue input plugin performs at about 30 messages/second in my tests.
+If you need more throughput from event hubs, I suggest using the event hub capture plugin.
 
 ## Dependencies
 
@@ -74,7 +77,9 @@ public static void Run(string[] hubMessages, ICollector<string> outputQueue, Tra
 }
 ```
 ## azure_event_hub_capture Input Plugin
-This plugin is designed to work with blobs stored to a container via [Azure Event Hubs Capture](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-capture-overview)
+This plugin is designed to work with blobs stored to a container via [Azure Event Hubs Capture](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-capture-overview)  
+
+**Warning:** This plugin will delete the blobs after emitting the contents in fluentd.
 
 ### Input: Configuration
 
