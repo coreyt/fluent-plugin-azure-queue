@@ -89,6 +89,8 @@ module Fluent
       rescue Azure::Core::Http::HTTPError => e
         if e.status_code == 409
           log.info("Blob already leased", blob_name: blob.name)
+        elsif e.status_code == 404
+          log.info("Blob already deleted", blob_name: blob.name)
         else
           log.warn("Error occurred while ingesting blob", error: e)
           log.warn_backtrace(e.backtrace)
