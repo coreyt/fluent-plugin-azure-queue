@@ -57,7 +57,7 @@ module Fluent
           begin
             blobs = @blob_client.list_blobs(@container_name)
             blobs = blobs.select { |b| b.properties[:lease_status] == "unlocked" }
-            log.trace("Found #{blobs.count} unlocked blobs", container_name: @container_name)
+            log.info("Found #{blobs.count} unlocked blobs", container_name: @container_name)
             # Blobs come back with oldest first
             blobs.each do |blob|
               ingest_blob(blob)
@@ -75,7 +75,7 @@ module Fluent
     def ingest_blob(blob)
       begin
         lease_id = @blob_client.acquire_blob_lease(@container_name, blob.name, duration: @lease_duration)
-        log.trace("Blob Leased", blob_name: blob.name)
+        log.info("Blob Leased", blob_name: blob.name)
         blob, blob_contents = @blob_client.get_blob(@container_name, blob.name)
         emit_blob_messages(blob_contents)
         log.trace("Done Ingest blob", blob_name: blob.name)
@@ -88,9 +88,9 @@ module Fluent
         end
       rescue Azure::Core::Http::HTTPError => e
         if e.status_code == 409
-          log.info("Blob already leased", blob_name: blob.name)
+          log.trace("Blob already leased", blob_name: blob.name)
         elsif e.status_code == 404
-          log.info("Blob already deleted", blob_name: blob.name)
+          log.trace("Blob already deleted", blob_name: blob.name)
         else
           log.warn("Error occurred while ingesting blob", error: e)
           log.warn_backtrace(e.backtrace)
@@ -105,10 +105,18 @@ module Fluent
       buffer = StringIO.new(blob_contents)
       reader = Avro::DataFile::Reader.new(buffer, Avro::IO::DatumReader.new)
       event_stream = MultiEventStream.new
-      reader.each do |record|
-        time = Time.strptime(record["EnqueuedTimeUtc"], "%m/%d/%Y %r").to_i
-        value = { @message_key => record["Body"] }
-        event_stream.add(time, value)
+      begin
+        reader.each do |record|
+          time = Time.strptime(record["EnqueuedTimeUtc"], "%m/%d/%Y %r").to_i
+          value = { @message_key => record["Body"] }
+          event_stream.add(time, value)
+        end
+      rescue NoMethodError => e
+        if e.message.include? "unpack"
+          log.warn("Found 0 length block in blob")
+        else
+          throw
+        end
       end
       router.emit_stream(@tag, event_stream)
     end
