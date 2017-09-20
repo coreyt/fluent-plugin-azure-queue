@@ -20,7 +20,7 @@ fluentd v.12
       storage_account_name my_storage_account
       storage_access_key my_storage_access_key
       queue_name my_storage_queue
-      fetch_interval 5     
+      fetch_interval 5
       lease_duration 30
     </source>
 
@@ -69,7 +69,7 @@ public static void Run(string[] hubMessages, ICollector<string> outputQueue, Tra
         {
             outputQueue.Add(message);
         }
-        else 
+        else
         {
             log.Warning($"Message is larger than 64k with {bytes} bytes. Dropping message");
         }
@@ -77,7 +77,7 @@ public static void Run(string[] hubMessages, ICollector<string> outputQueue, Tra
 }
 ```
 ## azure_event_hub_capture Input Plugin
-This plugin is designed to work with blobs stored to a container via [Azure Event Hubs Capture](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-capture-overview)  
+This plugin is designed to work with blobs stored to a container via [Azure Event Hubs Capture](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-capture-overview)
 
 **Warning:** This plugin will delete the blobs after emitting the contents in fluentd.
 
@@ -89,8 +89,8 @@ This plugin is designed to work with blobs stored to a container via [Azure Even
       tag event_hub_input
       storage_account_name my_storage_account
       storage_access_key my_storage_access_key
-      container_name my_capture_container
-      fetch_interval 30     
+      container_names my_capture_container
+      fetch_interval 30
       lease_duration 30
     </source>
 
@@ -106,9 +106,9 @@ The storage account name
 
 The storage account access key
 
-**container_name (required)**
+**container_names (required)**
 
-The capture container name
+The capture container names, comma separated.
 
 **message_key**
 
