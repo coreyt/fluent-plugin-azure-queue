@@ -15,7 +15,7 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     tag test_tag
     storage_account_name test_storage_account_name
     storage_access_key test_storage_access_key
-    container_name test_container_name
+    container_names test_container_name
     fetch_interval 1
   ]
 
@@ -26,13 +26,13 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
   end
 
   Struct.new("Blob", :name, :properties)
-  
+
   def test_configure
     d = create_driver
     assert_equal 'test_tag', d.instance.tag
     assert_equal 'test_storage_account_name', d.instance.storage_account_name
     assert_equal 'test_storage_access_key', d.instance.storage_access_key
-    assert_equal 'test_container_name', d.instance.container_name
+    assert_equal 'test_container_name', d.instance.container_names
     assert_equal 1, d.instance.fetch_interval
   end
 
@@ -42,11 +42,11 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     flexmock(Azure::Storage::Client, :create => client)
     blob_client
   end
-  
+
   def test_no_blobs
     d = create_driver
     blob_client = setup_mocks(d)
-    blob_client.should_receive(:list_blobs).with(d.instance.container_name).and_return([]).once
+    blob_client.should_receive(:list_blobs).with(d.instance.container_names).and_return([]).once
     flexmock(d.instance).should_receive(:ingest_blob).never()
     d.run do
       sleep 1
@@ -57,10 +57,10 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     d = create_driver
     blobs = [Struct::Blob.new("test1", lease_status: "unlocked"), Struct::Blob.new("test2", lease_status: "unlocked")]
     blob_client = setup_mocks(d)
-    blob_client.should_receive(:list_blobs).with(d.instance.container_name).and_return(blobs).once
+    blob_client.should_receive(:list_blobs).with(d.instance.container_names).and_return(blobs).once
     plugin = flexmock(d.instance)
-    plugin.should_receive(:ingest_blob).with(blobs[0]).once()
-    plugin.should_receive(:ingest_blob).with(blobs[1]).once()
+    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[0]).once()
+    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[1]).once()
     d.run do
       sleep 1
     end
@@ -72,14 +72,14 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     blob_client = setup_mocks(d)
     plugin = flexmock(d.instance)
     lease_id = "123"
-    blob_client.should_receive(:acquire_blob_lease).with(d.instance.container_name, blob.name, duration: d.instance.lease_duration).and_return(lease_id).once
+    blob_client.should_receive(:acquire_blob_lease).with(d.instance.container_names, blob.name, duration: d.instance.lease_duration).and_return(lease_id).once
     updated_blob = Struct::Blob.new("test1", lease_status: "locked")
     blob_contents = flexmock("blob_contents")
-    blob_client.should_receive(:get_blob).with(d.instance.container_name,  blob.name).and_return([updated_blob, blob_contents]).once
+    blob_client.should_receive(:get_blob).with(d.instance.container_names,  blob.name).and_return([updated_blob, blob_contents]).once
     plugin.should_receive(:emit_blob_messages).with(blob_contents).once
-    plugin.should_receive(:delete_blob).with(updated_blob, lease_id).once
+    plugin.should_receive(:delete_blob).with(d.instance.container_names, updated_blob, lease_id).once
     d.run do
-      plugin.send(:ingest_blob, blob)
+      plugin.send(:ingest_blob, d.instance.container_names, blob)
     end
   end
 
@@ -92,7 +92,7 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     time = 1504030204
     time_string = Time.at(time).strftime("%m/%d/%Y %r")
     original_payload = {"key" => "value"}.to_json
-    records = [ {"EnqueuedTimeUtc" => time_string, "Body" => original_payload } ] 
+    records = [ {"EnqueuedTimeUtc" => time_string, "Body" => original_payload } ]
     flexmock(Avro::DataFile::Reader).should_receive(:new).with(buffer, Avro::IO::DatumReader).and_return(records)
     d.run do
       d.instance.send(:emit_blob_messages, test_payload)
