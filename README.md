@@ -76,6 +76,7 @@ public static void Run(string[] hubMessages, ICollector<string> outputQueue, Tra
     }
 }
 ```
+
 ## azure_event_hub_capture Input Plugin
 This plugin is designed to work with blobs stored to a container via [Azure Event Hubs Capture](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-capture-overview)
 
@@ -121,3 +122,41 @@ The time in seconds to sleep between fetching the blob list. Default 30
 **lease_duration**
 
 The time to lease the messages for. Default 60
+
+**blob_names_from_queue**
+
+Get the blob names from a storage queue. Good if there are many blobs because listblobs is not reliable. Default false
+
+**queue_lease_time**
+
+The time to lease the queue message for. Default 60
+
+**queue_name**
+
+The queue name to read the blob names from. Must be in the same storage account as the blobs
+
+## Integration with Azure Event Hub
+
+Use this azure function if you want to ingest event hub capture blob names from a storage queue.
+
+```c#
+// Blob trigger binding to a CloudBlockBlob
+#r "Microsoft.WindowsAzure.Storage"
+
+using Microsoft.WindowsAzure.Storage.Blob;
+
+public static void Run(CloudBlockBlob myBlob, out BlobIdentifier outputQueueItem, TraceWriter log)
+{
+    log.Info($"C# Blob trigger function Processed blob Name:{myBlob.Name} URI:{myBlob.StorageUri}");
+    BlobIdentifier blobId = new BlobIdentifier { Name = myBlob.Name, Container = myBlob.Container.Name };
+    //outputQueueItem.add(blobId);
+    outputQueueItem = blobId;
+}
+
+
+public class BlobIdentifier
+{
+    public string Container { get; set; }
+    public string Name { get; set; }
+}
+```
