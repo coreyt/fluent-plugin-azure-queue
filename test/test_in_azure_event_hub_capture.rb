@@ -11,7 +11,7 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     end
   end
 
-  CONFIG = %[
+  LIST_CONFIG = %[
     tag test_tag
     storage_account_name test_storage_account_name
     storage_access_key test_storage_access_key
@@ -19,13 +19,25 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     fetch_interval 1
   ]
 
-  def create_driver(conf = CONFIG)
+  QUEUE_CONFIG = %[
+    tag test_tag
+    storage_account_name test_storage_account_name
+    storage_access_key test_storage_access_key
+    container_names test_container_name
+    fetch_interval 1
+    blob_names_from_queue true
+    queue_lease_time 30
+    queue_name test_queue_name
+  ]
+
+  def create_driver(conf = LIST_CONFIG)
     d = Fluent::Test::InputTestDriver.new(Fluent::AzureEventHubCaptureInput)
     d.configure(conf)
     d
   end
 
   Struct.new("Blob", :name, :properties)
+  Struct.new("QueueMessage", :id, :pop_receipt, :message_text)
 
   def test_configure
     d = create_driver
@@ -38,14 +50,15 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
 
   def setup_mocks(driver)
     blob_client = flexmock("blob_client")
-    client = flexmock("client", :blob_client => blob_client)
+    queue_client = flexmock("queue_client")
+    client = flexmock("client", :blob_client => blob_client, :queue_client => queue_client)
     flexmock(Azure::Storage::Client, :create => client)
-    blob_client
+    [blob_client, queue_client]
   end
 
-  def test_no_blobs
+  def test_list_no_blobs
     d = create_driver
-    blob_client = setup_mocks(d)
+    blob_client, queue_client = setup_mocks(d)
     blob_client.should_receive(:list_blobs).with(d.instance.container_names).and_return([]).once
     flexmock(d.instance).should_receive(:ingest_blob).never()
     d.run do
@@ -53,10 +66,10 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     end
   end
 
-  def test_two_blobs
+  def test_list_two_blobs
     d = create_driver
     blobs = [Struct::Blob.new("test1", lease_status: "unlocked"), Struct::Blob.new("test2", lease_status: "unlocked")]
-    blob_client = setup_mocks(d)
+    blob_client, queue_client = setup_mocks(d)
     blob_client.should_receive(:list_blobs).with(d.instance.container_names).and_return(blobs).once
     plugin = flexmock(d.instance)
     plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[0]).once()
@@ -66,10 +79,44 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     end
   end
 
+  def test_queue_no_blobs
+    d = create_driver(QUEUE_CONFIG)
+    blob_client, queue_client = setup_mocks(d)
+    queue_client.should_receive(:list_messages).with(
+      d.instance.queue_name,
+      d.instance.queue_lease_time,
+      { number_of_messages: 32}).and_return([]).once
+    flexmock(d.instance).should_receive(:ingest_blob).never()
+    d.run do
+      sleep 1
+    end
+  end
+
+  def test_queue_two_blobs
+    d = create_driver(QUEUE_CONFIG)
+    blob_id1 = { "Name" => "test1", "Container" => "container1" }
+    blob_id2 = { "Name" => "test2", "Container" => "container2" }
+    blobs_id_messages = [ Struct::QueueMessage.new(1, 99, Base64.encode64(blob_id1.to_json)),
+                          Struct::QueueMessage.new(2, 299, Base64.encode64(blob_id2.to_json))]
+    blob_client, queue_client = setup_mocks(d)
+    queue_client.should_receive(:list_messages).with(
+      d.instance.queue_name,
+      d.instance.queue_lease_time,
+      { number_of_messages: 32}).and_return(blobs_id_messages).once
+    plugin = flexmock(d.instance)
+    plugin.should_receive(:ingest_blob).with(blob_id1["Container"], blob_id1["Name"]).once()
+    plugin.should_receive(:ingest_blob).with(blob_id2["Container"], blob_id2["Name"]).once()
+    queue_client.should_receive(:delete_message).with(d.instance.queue_name, blobs_id_messages[0].id, blobs_id_messages[0].pop_receipt).once
+    queue_client.should_receive(:delete_message).with(d.instance.queue_name, blobs_id_messages[1].id, blobs_id_messages[1].pop_receipt).once
+    d.run do
+      sleep 1
+    end
+  end
+
   def test_ingest_blob
     d = create_driver
     blob = Struct::Blob.new("test1", lease_status: "unlocked")
-    blob_client = setup_mocks(d)
+    blob_client, queue_client = setup_mocks(d)
     plugin = flexmock(d.instance)
     lease_id = "123"
     blob_client.should_receive(:acquire_blob_lease).with(d.instance.container_names, blob.name, duration: d.instance.lease_duration).and_return(lease_id).once
@@ -85,7 +132,7 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
 
   def test_emit_blob_messages
     d = create_driver
-    setup_mocks(d)
+    blob_client, queue_client = setup_mocks(d)
     test_payload = flexmock("test_payload")
     buffer = flexmock("buffer")
     flexmock(StringIO).should_receive(:new).and_return(buffer)
