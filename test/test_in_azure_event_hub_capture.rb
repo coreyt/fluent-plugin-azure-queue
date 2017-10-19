@@ -25,7 +25,6 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     storage_access_key test_storage_access_key
     container_names test_container_name
     fetch_interval 1
-    blob_names_from_queue true
     queue_lease_time 30
     queue_name test_queue_name
   ]

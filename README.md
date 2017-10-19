@@ -123,17 +123,13 @@ The time in seconds to sleep between fetching the blob list. Default 30
 
 The time to lease the messages for. Default 60
 
-**blob_names_from_queue**
-
-Get the blob names from a storage queue. Good if there are many blobs because listblobs is not reliable. Default false
-
 **queue_lease_time**
 
 The time to lease the queue message for. Default 60
 
 **queue_name**
 
-The queue name to read the blob names from. Must be in the same storage account as the blobs
+If set, get the blob names from a storage queue. Good if there are many blobs because listblobs is not reliable.
 
 ## Integration with Azure Event Hub
 

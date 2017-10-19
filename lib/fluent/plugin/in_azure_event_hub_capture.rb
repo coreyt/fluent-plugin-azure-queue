@@ -20,11 +20,9 @@ module Fluent
     config_param :fetch_interval, :integer, default: 30
     desc 'The the lease duration on the blob in seconds'
     config_param :lease_duration, :integer, default: 60
-    desc 'Get the blob names from a queue rather than the "list blobs" operation'
-    config_param :blob_names_from_queue, :bool, default: false
     desc 'The the lease time on the messages in seconds'
     config_param :queue_lease_time, :integer, default: 60
-    desc 'The azure storage account queue name'
+    desc 'If set, get the blob names from a queue rather than the "list blobs" operation'
     config_param :queue_name, :string, default: nil
 
     def configure(conf)
@@ -61,7 +59,7 @@ module Fluent
       while @running
         if Time.now > @next_fetch_time
           @next_fetch_time = Time.now + @fetch_interval
-          if blob_names_from_queue
+          if queue_name
             ingest_from_queue
           else
             ingest_from_blob_list
@@ -80,7 +78,7 @@ module Fluent
           log.info("Found #{blobs.count} unlocked blobs", container_name: container_name)
           # Blobs come back with oldest first
           blobs.each do |blob|
-            ingest_blob(container_name, blob)
+            ingest_blob(container_name, blob.name)
           end
         rescue => e
           log.warn(error: e)
@@ -103,25 +101,25 @@ module Fluent
       end
     end
 
-    def ingest_blob(container_name, blob)
+    def ingest_blob(container_name, blob_name)
       begin
-        lease_id = @azure_client.blob_client.acquire_blob_lease(container_name, blob.name, duration: @lease_duration)
-        log.info("Blob Leased", blob_name: blob.name)
-        blob, blob_contents = @azure_client.blob_client.get_blob(container_name, blob.name)
+        lease_id = @azure_client.blob_client.acquire_blob_lease(container_name, blob_name, duration: @lease_duration)
+        log.info("Blob Leased", blob_name: blob_name)
+        blob, blob_contents = @azure_client.blob_client.get_blob(container_name, blob_name)
         emit_blob_messages(blob_contents)
-        log.trace("Done Ingest blob", blob_name: blob.name)
+        log.trace("Done Ingest blob", blob_name: blob_name)
         begin
           delete_blob(container_name, blob, lease_id)
-          log.debug("Blob deleted", blob_name: blob.name)
+          log.debug("Blob deleted", blob_name: blob_name)
         rescue Exception => e
-          log.warn("Records emmitted but blob not deleted", container_name: container_name, blob_name: blob.name, error: e)
+          log.warn("Records emmitted but blob not deleted", container_name: container_name, blob_name: blob_name, error: e)
           log.warn_backtrace(e.backtrace)
         end
       rescue Azure::Core::Http::HTTPError => e
         if e.status_code == 409
-          log.trace("Blob already leased", blob_name: blob.name)
+          log.trace("Blob already leased", blob_name: blob_name)
         elsif e.status_code == 404
-          log.trace("Blob already deleted", blob_name: blob.name)
+          log.trace("Blob already deleted", blob_name: blob_name)
         else
           log.warn("Error occurred while ingesting blob", error: e)
           log.warn_backtrace(e.backtrace)
