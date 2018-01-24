@@ -4,7 +4,7 @@ require "azure/storage/blob"
 require "azure/storage/queue"
 require "avro"
 
-module Fluent
+module Fluent::Plugin
   class AzureEventHubCaptureInput < Input
     Fluent::Plugin.register_input('azure_event_hub_capture', self)
 
@@ -137,7 +137,7 @@ module Fluent
     def emit_blob_messages(blob_contents)
       buffer = StringIO.new(blob_contents)
       reader = Avro::DataFile::Reader.new(buffer, Avro::IO::DatumReader.new)
-      event_stream = MultiEventStream.new
+      event_stream = Fluent::MultiEventStream.new
       begin
         reader.each do |record|
           time = Time.strptime(record["EnqueuedTimeUtc"], "%m/%d/%Y %r").to_i

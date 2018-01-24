@@ -15,7 +15,7 @@ Gem::Specification.new do |gem|
   gem.test_files  = `git ls-files -- {test,spec,features}/*`.split("\n")
   gem.require_paths = ['lib']
 
-  gem.add_dependency "fluentd", [">= 0.12.2", "< 0.14"]
+  gem.add_dependency "fluentd", [">= 1.0.2", "< 2.0"]
   gem.add_dependency "azure-storage-blob", [">= 1.0.1", "< 1.1.0"]
   gem.add_dependency "azure-storage-queue", [">= 1.0.1", "< 1.1.0"]
   gem.add_dependency "nokogiri"

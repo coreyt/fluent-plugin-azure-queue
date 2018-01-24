@@ -2,7 +2,7 @@ require 'fluent/input'
 require 'azure/storage/queue'
 require 'concurrent'
 
-module Fluent
+module Fluent::Plugin
   class AzureQueueInput < Input
     Fluent::Plugin.register_input('azure_queue', self)
 

@@ -1,13 +1,13 @@
-require 'fluent/test'
-require 'fluent/plugin/in_azure_event_hub_capture'
-require 'flexmock/test_unit'
-require 'fluent/input'
+require "test_helper"
+require "fluent/test/driver/input"
+require "fluent/plugin/in_azure_event_hub_capture"
 
 class AzureEventHubCaptureInputTest < Test::Unit::TestCase
+
   def setup
     Fluent::Test.setup
     if Fluent.const_defined?(:EventTime)
-      stub(Fluent::EventTime).now { @time }
+      #stub(Fluent::EventTime).now { @time }
     end
   end
 
@@ -30,13 +30,10 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf = LIST_CONFIG)
-    d = Fluent::Test::InputTestDriver.new(Fluent::AzureEventHubCaptureInput)
-    d.configure(conf)
-    d
+    Fluent::Test::Driver::Input.new(Fluent::Plugin::AzureEventHubCaptureInput).configure(conf)
   end
 
   Struct.new("Blob", :name, :properties)
-  Struct.new("QueueMessage", :id, :pop_receipt, :message_text)
 
   def test_configure
     d = create_driver
@@ -144,7 +141,7 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     d.run do
       d.instance.send(:emit_blob_messages, test_payload)
     end
-    assert_equal(1, d.emits.size)
-    d.expect_emit(d.instance.tag, time, { "message" => original_payload })
+    assert_equal(1, d.events.size)
+    assert_equal(d.events[0], [d.instance.tag, time, { "message" => original_payload }])
   end
 end

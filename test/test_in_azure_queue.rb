@@ -1,6 +1,6 @@
-require 'fluent/test'
-require 'fluent/plugin/in_azure_queue'
-require 'flexmock/test_unit'
+require "test_helper"
+require "fluent/test/driver/input"
+require "fluent/plugin/in_azure_queue"
 
 class AzureQueueInputTest < Test::Unit::TestCase
   def setup
@@ -8,7 +8,7 @@ class AzureQueueInputTest < Test::Unit::TestCase
     @time = Time.parse("2017-08-17 18:03:27 UTC")
     Fluent::Engine.now = @time
     if Fluent.const_defined?(:EventTime)
-      stub(Fluent::EventTime).now { @time }
+      #stub(Fluent::EventTime).now { @time }
     end
   end
 
@@ -20,9 +20,7 @@ class AzureQueueInputTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf = CONFIG)
-    d = Fluent::Test::InputTestDriver.new(Fluent::AzureQueueInput)
-    d.configure(conf)
-    d
+    Fluent::Test::Driver::Input.new(Fluent::Plugin::AzureQueueInput).configure(conf)
   end
 
   def test_configure
@@ -32,8 +30,6 @@ class AzureQueueInputTest < Test::Unit::TestCase
     assert_equal 'test_storage_access_key', d.instance.storage_access_key
     assert_equal 'test_queue_name', d.instance.queue_name
   end
-
-  Struct.new("QueueMessage", :id, :pop_receipt, :message_text)
 
   def setup_mocks(driver, messages)
     queue_client = flexmock("queue_client")
@@ -53,8 +49,8 @@ class AzureQueueInputTest < Test::Unit::TestCase
     d.run do
       sleep 1
     end
-    assert_equal(1, d.emits.size)
-    d.expect_emit(d.instance.tag, @time, { "message" => "test line" })
+    assert_equal(1, d.events.size)
+    assert_equal(d.events[0], [d.instance.tag, @time, { "message" => "test line" }])
   end
 
   def test_no_messages
@@ -64,6 +60,6 @@ class AzureQueueInputTest < Test::Unit::TestCase
     d.run do
       sleep 1
     end
-    assert_equal(0, d.emits.size)
+    assert_equal(0, d.events.size)
   end
 end
