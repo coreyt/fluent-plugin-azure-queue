@@ -1,5 +1,7 @@
 require 'fluent/input'
-require 'azure/storage'
+require 'azure/storage/common'
+require "azure/storage/blob"
+require "azure/storage/queue"
 require "avro"
 
 module Fluent
@@ -34,9 +36,11 @@ module Fluent
       if @lease_duration > 60 || @lease_duration < 15
         raise Fluent::ConfigError, "fluent-plugin-azure-queue: 'lease_duration' parameter must be between 15 and 60: #{@lease_duration}"
       end
-      @azure_client = Azure::Storage::Client.create(
+      azure_client = Azure::Storage::Common::Client.create(
         :storage_account_name => @storage_account_name,
         :storage_access_key => @storage_access_key)
+      @blob_client = Azure::Storage::Blob::BlobService.new(client: azure_client)
+      @queue_client = Azure::Storage::Queue::QueueService.new(client: azure_client)
       @running = true
       @containers = container_names.split(',').map { |c| c.strip }
 
@@ -73,7 +77,7 @@ module Fluent
     def ingest_from_blob_list
       @containers.each do |container_name|
         begin
-          blobs = @azure_client.blob_client.list_blobs(container_name)
+          blobs = @blob_client.list_blobs(container_name)
           blobs = blobs.select { |b| b.properties[:lease_status] == "unlocked" }
           log.info("Found #{blobs.count} unlocked blobs", container_name: container_name)
           # Blobs come back with oldest first
@@ -89,11 +93,11 @@ module Fluent
 
     def ingest_from_queue
       begin
-        blob_id_messages = @azure_client.queue_client.list_messages(@queue_name, @queue_lease_time, { number_of_messages: 32 })
+        blob_id_messages = @queue_client.list_messages(@queue_name, @queue_lease_time, { number_of_messages: 32 })
         blob_id_messages.each do |blob_id_message|
           blob_id = JSON.parse(Base64.decode64(blob_id_message.message_text))
           ingest_blob(blob_id["Container"], blob_id["Name"])
-          @azure_client.queue_client.delete_message(@queue_name, blob_id_message.id, blob_id_message.pop_receipt)
+          @queue_client.delete_message(@queue_name, blob_id_message.id, blob_id_message.pop_receipt)
         end
       rescue => e
         log.warn(error: e)
@@ -103,13 +107,13 @@ module Fluent
 
     def ingest_blob(container_name, blob_name)
       begin
-        lease_id = @azure_client.blob_client.acquire_blob_lease(container_name, blob_name, duration: @lease_duration)
+        lease_id = @blob_client.acquire_blob_lease(container_name, blob_name, duration: @lease_duration)
         log.info("Blob Leased", blob_name: blob_name)
-        blob, blob_contents = @azure_client.blob_client.get_blob(container_name, blob_name)
+        blob, blob_contents = @blob_client.get_blob(container_name, blob_name)
         emit_blob_messages(blob_contents)
         log.trace("Done Ingest blob", blob_name: blob_name)
         begin
-          delete_blob(container_name, blob, lease_id)
+          @blob_client.delete_blob(container_name, blob_name, lease_id: lease_id)
           log.debug("Blob deleted", blob_name: blob_name)
         rescue Exception => e
           log.warn("Records emmitted but blob not deleted", container_name: container_name, blob_name: blob_name, error: e)
@@ -148,13 +152,6 @@ module Fluent
         end
       end
       router.emit_stream(@tag, event_stream)
-    end
-
-    def delete_blob(container_name, blob, lease_id)
-      # Hack because 'delete_blob' doesn't support lease_id yet
-      Azure::Storage::Service::StorageService.register_request_callback { |headers| headers["x-ms-lease-id"] = lease_id }
-      @azure_client.blob_client.delete_blob(container_name, blob.name)
-      Azure::Storage::Service::StorageService.register_request_callback { |headers| headers }
     end
   end
 end
