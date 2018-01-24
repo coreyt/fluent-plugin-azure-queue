@@ -50,8 +50,9 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
   def setup_mocks(driver)
     blob_client = flexmock("blob_client")
     queue_client = flexmock("queue_client")
-    client = flexmock("client", :blob_client => blob_client, :queue_client => queue_client)
-    flexmock(Azure::Storage::Client, :create => client)
+    flexmock(Azure::Storage::Common::Client, :create => nil)
+    flexmock(Azure::Storage::Queue::QueueService, :new => queue_client)
+    flexmock(Azure::Storage::Blob::BlobService, :new => blob_client)
     [blob_client, queue_client]
   end
 
@@ -71,8 +72,8 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     blob_client, queue_client = setup_mocks(d)
     blob_client.should_receive(:list_blobs).with(d.instance.container_names).and_return(blobs).once
     plugin = flexmock(d.instance)
-    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[0]).once()
-    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[1]).once()
+    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[0].name).once()
+    plugin.should_receive(:ingest_blob).with(d.instance.container_names, blobs[1].name).once()
     d.run do
       sleep 1
     end
@@ -121,11 +122,11 @@ class AzureEventHubCaptureInputTest < Test::Unit::TestCase
     blob_client.should_receive(:acquire_blob_lease).with(d.instance.container_names, blob.name, duration: d.instance.lease_duration).and_return(lease_id).once
     updated_blob = Struct::Blob.new("test1", lease_status: "locked")
     blob_contents = flexmock("blob_contents")
-    blob_client.should_receive(:get_blob).with(d.instance.container_names,  blob.name).and_return([updated_blob, blob_contents]).once
+    blob_client.should_receive(:get_blob).with(d.instance.container_names, blob.name).and_return([updated_blob, blob_contents]).once
     plugin.should_receive(:emit_blob_messages).with(blob_contents).once
-    plugin.should_receive(:delete_blob).with(d.instance.container_names, updated_blob, lease_id).once
+    blob_client.should_receive(:delete_blob).with(d.instance.container_names, updated_blob.name, lease_id: lease_id).once
     d.run do
-      plugin.send(:ingest_blob, d.instance.container_names, blob)
+      plugin.send(:ingest_blob, d.instance.container_names, blob.name)
     end
   end
 

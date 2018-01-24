@@ -1,5 +1,5 @@
 require 'fluent/input'
-require 'azure/storage'
+require 'azure/storage/queue'
 require 'concurrent'
 
 module Fluent
@@ -27,9 +27,9 @@ module Fluent
 
     def start
       super
-      @queue_client = Azure::Storage::Client.create(
+      @queue_client = Azure::Storage::Queue::QueueService.create(
         :storage_account_name => @storage_account_name,
-        :storage_access_key => @storage_access_key).queue_client
+        :storage_access_key => @storage_access_key)
       log.debug("Succeeded to creating azure queue client")
       @running = true
 

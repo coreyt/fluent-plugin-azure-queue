@@ -41,8 +41,7 @@ class AzureQueueInputTest < Test::Unit::TestCase
       driver.instance.queue_name,
       driver.instance.lease_time,
       { number_of_messages: 1}).and_return(messages).once
-    client = flexmock("client", :queue_client => queue_client)
-    flexmock(Azure::Storage::Client, :create => client)
+    flexmock(Azure::Storage::Queue::QueueService, :create => queue_client)
     queue_client
   end
 
