@@ -5,7 +5,7 @@ require 'concurrent'
 
 module Fluent::Plugin
   class AzureQueueInput < Input
-    Fluent::Plugin.register_input('azure_storage_queue', self)
+    Fluent::Plugin.register_input('azure_queue', self)
 
     desc 'The tag to be used on the emitted events'
     config_param :tag, :string
@@ -48,14 +48,9 @@ module Fluent::Plugin
 
     def start
       super
-      # from the microsoft example at https://github.com/Azure/azure-storage-ruby/blob/master/queue/README.md
-      # @queue_client = Azure::Storage::Queue::QueueService.create(storage_account_name: <your account name>, storage_access_key: <your access key>)
-      
-      # from the original code
-      #@queue_client = Azure::Storage::Queue::QueueService.create(
-      #  :storage_account_name => @storage_account_name,
-      #  :storage_access_key => @storage_access_key)
-      @queue_client = Azure::Storage::Queue::QueueService.create(storage_account_name: @storage_account_name, storage_access_key: @storage_acces_key, user_agent_prefix: @user_agent_prefix)
+
+      @queue_client = Azure::Storage::Queue::QueueService.create(storage_account_name: @storage_account_name, storage_access_key: @storage_access_key, user_agent_prefix: @user_agent_prefix)
+#      @queue_client = Azure::Storage::Queue::QueueService.create(storage_account_name: @storage_account_name, storage_access_key: @azure_access_key, user_agent_prefix: @user_agent_prefix)
       log.debug("Succeeded to creating azure queue client")
       @running = true
 
