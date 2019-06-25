@@ -1,4 +1,4 @@
-require 'fluent/input'
+require 'fluent/plugin/input'
 require 'azure/storage/common'
 require "azure/storage/blob"
 require "azure/storage/queue"
